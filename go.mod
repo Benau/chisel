@@ -5,12 +5,13 @@ go 1.25
 toolchain go1.25.7
 
 require (
-	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jpillora/backoff v1.0.0
 	github.com/jpillora/requestlog v1.0.0
 	github.com/jpillora/sizestr v1.0.0
+	github.com/meteorite/scope v0.0.0-20210314203727-1e230fea59ae
+	github.com/meteorite/socks5 v0.0.0-20210604215257-bf325eecbc5d
 	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.50.0
 	golang.org/x/sync v0.19.0
