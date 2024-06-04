@@ -67,6 +67,8 @@ func main() {
 }
 
 var commonHelp = `
+    --protocol-name Custom protocol name (defaults to 'chisel')
+
     --pid Generate pid file in current working directory
 
     -v, Enable verbose logging
@@ -181,6 +183,7 @@ func server(args []string) {
 	flags := flag.NewFlagSet("server", flag.ContinueOnError)
 
 	config := &chserver.Config{}
+	protocolName := flags.String("protocol-name", "", "")
 	flags.StringVar(&config.KeySeed, "key", "", "")
 	flags.StringVar(&config.KeyFile, "keyfile", "", "")
 	flags.StringVar(&config.AuthFile, "authfile", "", "")
@@ -207,6 +210,11 @@ func server(args []string) {
 		os.Exit(0)
 	}
 	flags.Parse(args)
+
+	// allow overriding protocol name before creating server
+	if *protocolName != "" {
+		chshare.SetProtocolName(*protocolName)
+	}
 
 	if *keyGen != "" {
 		if err := ccrypto.GenerateKeyFile(*keyGen, config.KeySeed); err != nil {
@@ -424,6 +432,7 @@ var clientHelp = `
 func client(args []string) {
 	flags := flag.NewFlagSet("client", flag.ContinueOnError)
 	config := chclient.Config{Headers: http.Header{}}
+	protocolName := flags.String("protocol-name", "", "custom protocol name (defaults to 'chisel')")
 	flags.StringVar(&config.Fingerprint, "fingerprint", "", "")
 	flags.StringVar(&config.Auth, "auth", "", "")
 	flags.DurationVar(&config.KeepAlive, "keepalive", 25*time.Second, "")
@@ -444,6 +453,12 @@ func client(args []string) {
 		os.Exit(0)
 	}
 	flags.Parse(args)
+
+	// allow overriding protocol name before creating client
+	if *protocolName != "" {
+		chshare.SetProtocolName(*protocolName)
+	}
+
 	//pull out options, put back remaining args
 	args = flags.Args()
 	if len(args) < 2 {
