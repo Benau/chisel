@@ -1,52 +1,97 @@
-name: CI
+name: cctools
+
 on:
-  pull_request: {}
-  push: {}
-permissions: write-all
+  workflow_dispatch:
+
+env:
+  TVOS_SDK: '26.3'
+  TVSIM_SDK: '26.3'
+  IPHONEOS_SDK: '26.3'
+  IPHONESIM_SDK: '26.3'
+  MACOS_SDK: '26.3'
+
 jobs:
-  # ================
-  # BUILD AND TEST JOB
-  # ================
-  test:
-    name: Build & Test
-    strategy:
-      matrix:
-        go-version: ["stable"]
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
+  package:
+    name: Package cctools SDK
+    runs-on: macos-15
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Show Xcode
+        run: |
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Copy SDK files
+        run: |
+          set -eux
+
+          mkdir -p cctools/sdk
+
+          XCODE="/Applications/Xcode_26.3.app"
+          XCODE="${XCODE%/Contents/Developer}"
+
+          echo "Using Xcode: $XCODE"
+
+          cp -R \
+            "$XCODE/Contents/Developer/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk" \
+            cctools/sdk/AppleTVOS.sdk
+
+          cp -R \
+            "$XCODE/Contents/Developer/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk" \
+            cctools/sdk/AppleTVSimulator.sdk
+
+          cp -R \
+            "$XCODE/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk" \
+            cctools/sdk/iPhoneOS.sdk
+
+          cp -R \
+            "$XCODE/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk" \
+            cctools/sdk/iPhoneSimulator.sdk
+
+          cp -R \
+            "$XCODE/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" \
+            cctools/sdk/MacOSX.sdk
+
+          cp -R \
+            "$XCODE/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/"*/lib/darwin \
+            cctools/
+
+          cd cctools/sdk
+
+          mv AppleTVOS.sdk "AppleTVOS${TVOS_SDK}.sdk"
+          ln -s "AppleTVOS${TVOS_SDK}.sdk" AppleTVOS.sdk
+
+          mv AppleTVSimulator.sdk "AppleTVSimulator${TVSIM_SDK}.sdk"
+          ln -s "AppleTVSimulator${TVSIM_SDK}.sdk" AppleTVSimulator.sdk
+
+          mv iPhoneOS.sdk "iPhoneOS${IPHONEOS_SDK}.sdk"
+          ln -s "iPhoneOS${IPHONEOS_SDK}.sdk" iPhoneOS.sdk
+
+          mv iPhoneSimulator.sdk "iPhoneSimulator${IPHONESIM_SDK}.sdk"
+          ln -s "iPhoneSimulator${IPHONESIM_SDK}.sdk" iPhoneSimulator.sdk
+
+          mv MacOSX.sdk "MacOSX${MACOS_SDK}.sdk"
+          ln -s "MacOSX${MACOS_SDK}.sdk" MacOSX.sdk
+
+          cd ../..
+
+          tar cf cctools.tar cctools
+
+      - name: Upload cctools.tar
+        uses: actions/upload-artifact@v4
         with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v6
+          name: cctools
+          path: cctools.tar
+
+      - name: Upload to dummy release
+        uses: ncipollo/release-action@v1
         with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
-      - name: Build
-        run: go build -v -o /dev/null .
-      #- name: Test
-      #  run: go test -v ./...
-  # ================
-  # RELEASE BINARIES (on push "v*" tag)
-  # ================
-  release_binaries:
-    name: Release Binaries
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: goreleaser
-        if: success()
-        uses: docker://goreleaser/goreleaser:latest
-        env:
-          GITHUB_USER: ${{ github.repository_owner }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOTOOLCHAIN: auto
-        with:
-          args: release --config .github/goreleaser.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: cctools.tar
+          tag: cctools
+          name: cctools
+          body: "SDK archive generated from the macOS-15 GitHub Actions runner."
+          allowUpdates: true
+          replacesArtifacts: true
+          prerelease: true
+
